@@ -1,0 +1,129 @@
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'globals.dart';
+
+class OrderTransactionPage extends StatefulWidget {
+  final String customerId;
+
+  const OrderTransactionPage({
+    Key? key,
+    required this.customerId,
+  }) : super(key: key);
+
+  @override
+  _OrderTransactionPageState createState() => _OrderTransactionPageState();
+}
+
+class _OrderTransactionPageState extends State<OrderTransactionPage> {
+  List<dynamic>? orderDetails; // Variable to hold order details as a list
+  bool isLoading = true; // Loading state
+
+  @override
+  void initState() {
+    super.initState();
+    fetchOrderDetails(); // Fetch order details on initialization
+  }
+
+  Future<void> fetchOrderDetails() async {
+    String uri = "${uriname}order_transaction.php?ot_id=${widget.customerId}"; // Using customerId as ot_id
+    try {
+      var res = await http.get(Uri.parse(uri));
+      if (res.statusCode == 200) {
+        var response = jsonDecode(res.body);
+        if (response is List) {
+          setState(() {
+            orderDetails = response; // Set the order details list
+            isLoading = false; // Set loading state to false
+          });
+        } else {
+          throw Exception('Invalid data format');
+        }
+      } else {
+        throw Exception('Failed to load data: ${res.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching order details: $e');
+      setState(() {
+        isLoading = false; // Set loading state to false
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching order details: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Order Transaction'),
+        backgroundColor: Colors.orangeAccent,
+      ),
+      body: isLoading
+          ? Center(child: CircularProgressIndicator()) // Show loading spinner
+          : orderDetails != null && orderDetails!.isNotEmpty
+              ? Padding(
+                  padding: const EdgeInsets.all(5.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: ListView.builder(
+                          itemCount: orderDetails!.length,
+                          itemBuilder: (context, index) {
+                            final item = orderDetails![index];
+                            return Padding(
+                              padding: const EdgeInsets.all(5.0),
+                              child: Card(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                elevation: 5,
+                                child: Padding(
+                                  padding: const EdgeInsets.all(5.0),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${item['ot_itemid'] ?? 'N/A'}',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      SizedBox(height: 5),
+                                      Text(
+                                        'Serial No: ${item['ot_srno'] ?? 'N/A'}',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                      SizedBox(height: 5),
+                                      Text(
+                                        'Quantity: ${item['ot_qty'] ?? 'N/A'}',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                      SizedBox(height: 5),
+                                      Text(
+                                        'Rate: ${item['ot_rate'] != null ? double.tryParse(item['ot_rate'].toString())?.toStringAsFixed(2) : 'N/A'}',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                      SizedBox(height: 5),
+                                      Text(
+                                        'Amount: ${item['ot_amt'] != null ? double.tryParse(item['ot_amt'].toString())?.toStringAsFixed(2) : 'N/A'}',
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : Center(child: Text('No order details found')),
+    );
+  }
+}

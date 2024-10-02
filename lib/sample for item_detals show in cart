@@ -1,0 +1,155 @@
+import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'CartPage.dart';
+import 'cart_item.dart';
+
+class ItemDetailScreen extends StatefulWidget {
+  final String ig_id;
+  final String groupName;
+
+  const ItemDetailScreen({
+    super.key,
+    required this.ig_id,
+    required this.groupName,
+  });
+
+  @override
+  State<ItemDetailScreen> createState() => _ItemDetailScreenState();
+}
+
+class _ItemDetailScreenState extends State<ItemDetailScreen> {
+  List orderDetails = [];
+  bool isLoading = true;
+  bool hasError = false;
+  List<CartItem> cartItems = []; // List to store added cart items
+
+  @override
+  void initState() {
+    super.initState();
+    getOrderDetails();
+  }
+
+  // Fetching order details
+  Future<void> getOrderDetails() async {
+    // API endpoint to get order details filtered by ig_id
+    String uri = "http://swati.amisys.in/dashboard_api/view_item.php?ig_id=${widget.ig_id}";
+
+    try {
+      var response = await http.get(Uri.parse(uri));
+      if (response.statusCode == 200) {
+        try {
+          var jsonResponse = jsonDecode(response.body);
+          if (jsonResponse is List && jsonResponse.isNotEmpty) {
+            // Set orderDetails with the fetched data
+            setState(() {
+              orderDetails = jsonResponse;
+              isLoading = false; // Data loaded
+            });
+          } else {
+            // No details found
+            setState(() {
+              isLoading = false;
+              hasError = true;
+            });
+          }
+        } catch (e) {
+          print('JSON decoding error: $e');
+          setState(() {
+            isLoading = false;
+            hasError = true; // JSON decoding error
+          });
+        }
+      } else {
+        print('Request failed with status: ${response.statusCode}');
+        setState(() {
+          isLoading = false;
+          hasError = true; // HTTP error
+        });
+      }
+    } catch (e) {
+      print('Request error: $e');
+      setState(() {
+        isLoading = false;
+        hasError = true; // Request error
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(widget.groupName),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart),
+            onPressed: () {
+              // Navigate to CartPage to view cart items
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => CartPage(cartItems: cartItems),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : hasError
+          ? const Center(child: Text('Error fetching order details.'))
+          : ListView.builder(
+        itemCount: orderDetails.length,
+        itemBuilder: (context, index) {
+          var order = orderDetails[index];
+          return Card(
+            margin: const EdgeInsets.all(10),
+            child: ListTile(
+              title: Text(order['name']),
+              subtitle: Text('Company: ${order['company']}'),
+              trailing: IconButton(
+                icon: const Icon(Icons.add_shopping_cart),
+                onPressed: () {
+                  setState(() {
+                    // Add item to the cart
+                    cartItems.add(
+                      CartItem(
+                        name: order['name'],
+                        company: order['company'],
+                        openingStock: order['openingstocks'],
+                        rate: order['rate'],
+                        imageUrl: order['imageUrl'],
+                      ),
+                    );
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Item added to cart')),
+                  );
+                },
+              ),
+            ),
+          );
+        },
+      ),
+      bottomNavigationBar: cartItems.isNotEmpty
+          ? Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ElevatedButton(
+          onPressed: () {
+            // Navigate to CartPage to view all cart items
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CartPage(cartItems: cartItems),
+              ),
+            );
+          },
+          child: const Text('View Cart'),
+        ),
+      )
+          : null,
+    );
+  }
+}

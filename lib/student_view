@@ -1,0 +1,162 @@
+import 'package:app_dashboard/update_student.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:app_dashboard/add_Student.dart';
+
+
+//import 'package:student/update_record.dart';
+
+class ViewData extends StatefulWidget {
+  const ViewData({super.key}); // Super constructor parameter
+
+  @override
+  State<ViewData> createState() => _ViewDataState();
+}
+
+class _ViewDataState extends State<ViewData> {
+  List data = [];
+  bool isLoading = true;
+
+  Future<void>delrecord(String id) async{
+    try
+    {
+      String uri = "https://swati.amisys.in/delete_student.php";
+      var res = await http.post(Uri.parse(uri), body: {"id":id});
+      var response =jsonDecode(res.body);
+      if(response["success"]=="true")
+      {
+        print("Record Deleted");
+        fetchData();
+      }
+      else
+      {
+        print("Failed to delete data");
+      }
+
+      // Debugging: Print the raw response body
+      print('Response body: ${res.body}');
+    }
+    catch(e){
+      print(e);
+    }
+  }
+
+
+  Future<void> fetchData() async {
+    String uri = "https://swati.amisys.in/view_student.php";  // Your API endpoint
+    try {
+      var res = await http.get(Uri.parse(uri));
+
+      // Debugging: Print the raw response body
+      print('Response body: ${res.body}');
+
+      if (res.statusCode == 200) {
+        var response = jsonDecode(res.body);
+        print('Decoded Response: $response'); // Print decoded response for debugging
+
+        // Adjust based on response structure
+        if (response is List) {
+          setState(() {
+            data = response;
+          });
+        } else if (response is Map<String, dynamic> && response.containsKey('data')) {
+          setState(() {
+            data = response['data']; // Extract the list from 'data' key
+          });
+        } else {
+          showSnackBar('Invalid data format received');
+        }
+      } else {
+        showSnackBar('Failed to load data: ${res.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching data: $e'); // Print to console for debugging
+      showSnackBar('Error fetching data: $e');
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  void showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+  @override
+  void initState() {
+    super.initState();
+    fetchData();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+          backgroundColor: Colors.orange,
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+             const Text('View Student'),
+              InkWell(
+                onTap: (){
+                  Navigator.push(context, MaterialPageRoute(builder: (context)=>const Add_Student()));
+                },
+                  child:const Icon(Icons.add)
+              ),
+
+              // Navigator.push(context, MaterialPageRoute(builder: (context)=>update_record()));// Replace with the desired icon
+            ],
+          )
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator()) // Show loading spinner
+          : data.isEmpty
+          ? const Center(child: Text('No data available'))
+          : ListView.builder(
+        itemCount: data.length,
+        itemBuilder: (context, index) {
+          return Padding(
+            padding: const EdgeInsets.all(5.0),
+            child: Card(
+              margin:const EdgeInsets.all(8),
+              child: ListTile(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => UpdateStudent(
+                          data[index]["id"],
+                          data[index]["sname"],    // Positional argument 1
+                          data[index]["rollno"],   // Positional argument 2
+                          data[index]["std"],      // Positional argument 3
+                          data[index]["division"] // Positional argument 4
+                      )
+                    ),
+                  );
+                },
+
+                title: Text(data[index]["sname"]),
+                subtitle: Column(
+                  children: [
+                    Text('Roll No.: ${data[index]["rollno"]}'),
+                    Text('Standard: ${data[index]["std"]}'),
+                    Text('Division: ${data[index]["division"]}'),
+                  ],
+                ),
+
+                trailing: IconButton(onPressed: (){
+                  delrecord(data[index]["id"]);
+                }, icon:const Icon(Icons.delete)),
+                // Wrapped in Text widget
+              ),
+            ),
+
+          );
+        },
+      ),
+    );
+  }
+}

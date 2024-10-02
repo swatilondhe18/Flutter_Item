@@ -1,0 +1,231 @@
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'cart_item.dart';
+import 'CartPage.dart'; // Ensure the correct import
+
+class ItemDetailScreen extends StatefulWidget {
+  final String ig_id;
+  final String groupName;
+
+  const ItemDetailScreen({
+    super.key,
+    required this.ig_id,
+    required this.groupName,
+  });
+
+  @override
+  State<ItemDetailScreen> createState() => _ItemDetailScreenState();
+}
+
+class _ItemDetailScreenState extends State<ItemDetailScreen> {
+  List<dynamic> orderDetails = []; // Specify the type
+  List<CartItem> cartItems = [];
+  bool isLoading = true;
+  bool hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    getOrderDetails();
+  }
+
+  Future<void> getOrderDetails() async {
+    String uri = "http://swati.amisys.in/dashboard_api/view_item.php?ig_id=${widget.ig_id}";
+
+    try {
+      var response = await http.get(Uri.parse(uri));
+      if (response.statusCode == 200) {
+        var jsonResponse = jsonDecode(response.body);
+        if (jsonResponse is List && jsonResponse.isNotEmpty) {
+          setState(() {
+            orderDetails = jsonResponse.where((order) => order['ig_id'] == widget.ig_id).toList();
+            isLoading = false;
+          });
+        } else {
+          setState(() {
+            isLoading = false;
+            hasError = true;
+          });
+        }
+      } else {
+        setState(() {
+          isLoading = false;
+          hasError = true;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        hasError = true;
+      });
+    }
+  }
+
+  void _addToCart(String itemId) {// this line make difference
+    var order = orderDetails.firstWhere((order) => order['ig_id'] == itemId);
+
+    // Create a new CartItem instance with the required quantity parameter
+    CartItem item = CartItem(
+      name: order['name'] ?? 'No Name',
+      company: order['company'] ?? 'N/A',
+      openingStock: order['openingstocks']?.toString() ?? '0',
+      rate: double.tryParse(order['rate']?.toString() ?? '0.0') ?? 0.0,
+      imageUrl: order['imageUrl'] ?? '',
+      quantity: 1, // Initialize quantity to 1
+    );
+
+    setState(() {
+      cartItems.add(item);
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${item.name} added to cart')),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.orange,
+        title: Text(widget.groupName),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.shopping_cart),
+            onPressed: () {
+              // Navigate to CartPage if there are items in the cart
+              if (cartItems.isNotEmpty) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => CartPage(
+                      id: widget.ig_id, // Pass ig_id as a parameter
+                      cartItems: cartItems,
+                      // quantity: 1, // Remove this line if CartPage does not take a quantity parameter
+                    ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Your cart is empty')),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : hasError
+          ? const Center(child: Text('Error fetching order details'))
+          : orderDetails.isEmpty
+          ? const Center(child: Text('No order details available'))
+          : ListView.builder(
+            itemCount: orderDetails.length,
+            itemBuilder: (context, index) {
+            var order = orderDetails[index];
+            return Card(
+            margin: const EdgeInsets.all(10),
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order['name'] ?? 'No Name Available',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Company: ${order['company'] ?? 'N/A'}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.blueGrey,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Opening Stock: ${order['openingstocks'] ?? 'N/A'}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          color: Colors.blueGrey,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          const Icon(Icons.currency_rupee, color: Colors.green),
+                          Text(
+                            order['rate']?.toString() ?? '0.00',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                          const SizedBox(width: 120),
+                          InkWell(
+                            onTap: () {
+                              // Use actual order data
+                              _addToCart(order['ig_id']); // Pass ig_id to _addToCart
+                            },
+                            child: const Icon(Icons.add_shopping_cart, color: Colors.orange),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                  const SizedBox(width: 16),
+                  Container(
+                    width: 100,
+                    height: 100,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: Colors.grey[200],
+                    ),
+                    child: Image.network(
+                      order['imageUrl'] ?? "https://images.pexels.com/photos/14345797/pexels-photo-14345797.jpeg",
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+      bottomNavigationBar: cartItems.isNotEmpty
+          ? Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => CartPage(
+                  id: widget.ig_id, // Pass ig_id as a parameter
+                  cartItems: cartItems,
+
+                ),
+              ),
+            );
+          },
+          child: const Text('View Cart'),
+        ),
+      )
+          : null,
+    );
+  }
+}

@@ -1,0 +1,111 @@
+import 'package:flutter/material.dart';
+import 'item_detail_screen.dart';
+import 'cart_item.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Group Order Dashboard',
+      theme: ThemeData(
+        primarySwatch: Colors.orange,
+      ),
+      home: const DashboardScreen(),
+    );
+  }
+}
+
+class DashboardScreen extends StatelessWidget {
+  const DashboardScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // List of categories with ig_id and group names
+    final List<Map<String, String>> categories = [
+      {'name': 'Stationery', 'ig_id': '1', 'imageUrl': 'https://c8.alamy.com/comp/E2247Y/stationery-set-on-white-background-E2247Y.jpg'},
+      {'name': 'Home', 'ig_id': '2', 'imageUrl': 'https://img.freepik.com/free-photo/close-up-cleaning-sex-toys_23-2149151824.jpg'},
+      {'name': 'Cloths', 'ig_id': '3', 'imageUrl': 'https://img.freepik.com/free-vector/summer-clothes-set_74855-446.jpg'},
+      {'name': 'Office', 'ig_id': '4', 'imageUrl': 'https://img.freepik.com/free-vector/business-items-mobile-devices-set-tablet-phone-notebook-plastic-card-vector-illustration_98292-6499.jpg?size=338&ext=jpg&ga=GA1.1.2008272138.1727049600&semt=ais_hybrid'},
+      {'name': 'Fashion', 'ig_id': '5', 'imageUrl': 'https://thumbs.dreamstime.com/b/luxurious-fashion-accessories-jewelry-arrangement-sophisticated-collection-including-handbags-shoes-sunglasses-elegant-322373255.jpg'},
+      {'name': 'Books', 'ig_id': '6', 'imageUrl': 'https://media.gettyimages.com/id/157482029/photo/stack-of-books.jpg?s=612x612&w=gi&k=20&c=_Yaofm8sZLZkKs1eMkv-zhk8K4k5u0g0fJuQrReWfdQ='},
+      // Add more categories as needed
+    ];
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.orange,
+        title: const Text('Dashboard'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: GridView.builder(
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 4, // 4 grids in a single row
+            crossAxisSpacing: 10.0, // Space between grids horizontally
+            mainAxisSpacing: 25.0, // Space between grids vertically
+            childAspectRatio: 0.8, // Aspect ratio of each grid item
+          ),
+          itemCount: categories.length,
+          itemBuilder: (context, index) {
+            final category = categories[index];
+            return GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ItemDetailScreen(
+                      ig_id: category['ig_id']!, // Group id
+                      groupName: category['name']!, // Group name
+                    ),
+                  ),
+                );
+              },
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Container for the image
+                  Container(
+                    height: 80, // Set a fixed height for the image
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(16),
+                      image: DecorationImage(
+                        image: NetworkImage(category['imageUrl']!), // Category image URL
+                        fit: BoxFit.cover, // Fit the image within the container
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10), // Space between image and text
+                  // Category name below the image
+                  Flexible(
+                    child: Text(
+                      category['name']!,
+                      textAlign: TextAlign.center, // Center the text
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                      maxLines: 1, // Limit to 1 line if needed
+                      overflow: TextOverflow.ellipsis, // Show ellipsis (...) if text overflows
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
